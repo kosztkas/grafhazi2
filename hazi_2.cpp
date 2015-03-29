@@ -89,7 +89,10 @@ struct Vector {
    Vector operator%(const Vector& v) { 	// cross product
 	return Vector(y*v.z-z*v.y, z*v.x - x*v.z, x*v.y - y*v.x);
    }
-   float Length() { return sqrt(x * x + y * y + z * z); }
+   float Length() {
+        return sqrt(x * x + y * y + z * z); }
+   Vector Normal(){ 
+       return *this * (1 / this->Length()); }
 };
  
 //--------------------------------------------------------
@@ -115,26 +118,45 @@ struct Color {
    }
 };
 
+class Material{
+    
+};
+
+class Ray{
+public:
+    Vector origin, vector;
+    int i;
+    Ray(Vector o, Vector v): vector(v.Normal()){
+        origin=o+0.005f*this->vector;
+    }
+};
+
 class Hit {
 public:
   float t;
   float position; //float3
   float normal; //float3
-  //Material* material;
+  Material* material;
+};
+class Intersectable{
+protected:
+  Material* material;
+public:
+  virtual Hit intersect(const Ray& ray)=0;
 };
 
-/*
-Hit firstIntersect(Ray ray) {
+
+Hit firstIntersect(Ray ray){
   Hit bestHit;
-  bestHit.t = FLT_MAX;
+ /* bestHit.t = FLT_MAX;
   for(Intersectable* obj : objects)
   {
     Hit hit = obj->intersect(ray); //  hit.t < 0 if no intersection
     if(hit.t > 0 && hit.t < bestHit.t) bestHit = hit;
   }
-  return bestHit;
+  return bestHit;*/
 } 
-*/
+
 
 const int screenWidth = 600;	// alkalmazás ablak 
 const int screenHeight = 600;
