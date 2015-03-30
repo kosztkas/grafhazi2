@@ -118,16 +118,21 @@ struct Color {
    }
 };
 
+//konstansok definialasa
+const float FLT_MAX=1048576.1048576;
+const int screenWidth = 600;	// alkalmazás ablak 
+const int screenHeight = 600;
+
 class Material{
     
 };
 
 class Ray{
 public:
-    Vector origin, vector;
+    Vector origin, direction;
     int i;
-    Ray(Vector o, Vector v): vector(v.Normal()){
-        origin=o+0.005f*this->vector;
+    Ray(Vector o, Vector v): direction(v.Normal()){
+        origin=o;
     }
 };
 
@@ -138,6 +143,7 @@ public:
   float normal; //float3
   Material* material;
 };
+
 class Intersectable{
 protected:
   Material* material;
@@ -145,6 +151,41 @@ public:
   virtual Hit intersect(const Ray& ray)=0;
 };
 
+struct Camera {
+	Vector eye;
+	Vector lookat;
+	Vector up;
+	Vector right;
+
+	Camera() {}
+
+	Camera(Vector e, Vector l, Vector u) {
+		eye=e;
+		lookat=(l-eye).Normal();
+		float fov=120;
+		float meret = tan((fov*M_PI/180)/2);
+		right=(lookat%u).Normal()*meret;
+		up=(right%lookat).Normal()*meret;
+	}
+/*
+	void picture() {
+		for(int i=0; i<screenWidth; i++) {
+			for(int j=0; j<screenHeight; j++) {
+				scene.image[i+j*screenHeight]=pixel(i,j);
+			}
+		}
+	}
+
+	Color pixel(int x, int y) {
+		Vector p=lookat + right * ((2.0f * (x + 0.5f)) /screenWidth - 1.0f)
+		         + up * ((2.0f * (y + 0.5f)) /screenHeight - 1.0f);
+		Ray r=Ray(eye,(p-eye).Normal());
+
+		Color retColor=scene.trace(r, 0);
+		return retColor;
+	}
+*/
+};
 
 Hit firstIntersect(Ray ray){
   Hit bestHit;
@@ -155,12 +196,7 @@ Hit firstIntersect(Ray ray){
     if(hit.t > 0 && hit.t < bestHit.t) bestHit = hit;
   }
   return bestHit;*/
-} 
-
-
-const int screenWidth = 600;	// alkalmazás ablak 
-const int screenHeight = 600;
-
+}
 
 Color image[screenWidth*screenHeight];	// egy alkalmazás ablaknyi kép
 
