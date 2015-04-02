@@ -120,11 +120,36 @@ struct Color {
 
 //konstansok definialasa
 const float FLT_MAX=1048576.1048576;
+const float G=10;//m/s^2
+
 const int screenWidth = 600;	// alkalmazás ablak 
 const int screenHeight = 600;
 
 class Material{
+ public:
+    Color kd, ks, ka;
+    float shininess;
+    Color n;
+    Color k;
+    bool reflective;
+    bool refractive;
+    void setN(Color const &n) {
+        Material::n = n;
+    }
+
+    void setK(Color const &k) {
+        Material::k = k;
+    }
     
+    void setReflective(bool refl) {
+        Material::reflective = refl;
+    }
+};
+
+class Light{
+    Vector position;
+    Color color;
+    float intensity;
 };
 
 class Ray{
@@ -149,7 +174,58 @@ protected:
   Material* material;
 public:
   virtual Hit intersect(const Ray& ray)=0;
+  
 };
+
+class Box: public Intersectable {
+    
+};
+
+class Donut: public Intersectable {
+    
+};
+//ezeket még nem tudom hova rakni
+/*
+struct Scene {
+	Object* objects[100];
+	Light lights[10];
+	int objectnum;
+	int lightnum;
+}
+*/
+/*
+float3 trace(Ray ray) {
+  Hit hit = firstIntersect(ray);
+  if(hit.t < 0) return La; // nothing
+  float3 outRadiance (0, 0, 0);
+  for(each light source i){
+    Ray shadowRay(x + Nepsilon, Li);
+    Hit shadowHit = firstIntersect(shadowRay);
+    if(shadowHit.t < 0 || shadowHit.t > |x - yi| )
+       outRadiance += hit.material->shade(N,V,Li, Intensi);
+  }
+  if(hit.material->reflective){
+    float3 reflectionDir = reflect(V,N);
+    Ray reflectedRay(x + Nepsilon, reflectionDir );
+    outRadiance +=trace(reflectedRay)*F(V,N);
+  }
+  if(hit.material->refractive) {
+    float3 refractionDir = refract(V,N);
+    Ray refractedRay(x - Nepsilon, refractionDir );
+    outRadiance +=trace(refractedRay)*(float3(1,1,1)-F(V,N));
+  }
+  return outRadiance;
+}
+*/
+/*
+Render( )
+     for each pixel p
+	Ray r = GetRay( eye -> pixel p )
+      	color = trace(ray)
+	WritePixel(p, color)
+     endfor
+end
+*/
 
 struct Camera {
 	Vector eye;
@@ -189,13 +265,13 @@ struct Camera {
 
 Hit firstIntersect(Ray ray){
   Hit bestHit;
- /* bestHit.t = FLT_MAX;
+ bestHit.t = FLT_MAX;/*
   for(Intersectable* obj : objects)
   {
     Hit hit = obj->intersect(ray); //  hit.t < 0 if no intersection
     if(hit.t > 0 && hit.t < bestHit.t) bestHit = hit;
-  }
-  return bestHit;*/
+  }*/
+  return bestHit;
 }
 
 Color image[screenWidth*screenHeight];	// egy alkalmazás ablaknyi kép
@@ -210,6 +286,11 @@ void onInitialization( ) {
 		for(int X = 0; X < screenWidth; X++)
 			image[Y*screenWidth + X] = Color((float)X/screenWidth, (float)Y/screenHeight, 0);
 
+    
+    Material gold;
+    gold.setN(Color(0.17f, 0.35f, 1.5f));
+    gold.setK(Color(3.1f, 2.7f, 1.9f));
+    gold.setReflective(true);
 }
 
 // Rajzolas, ha az alkalmazas ablak ervenytelenne valik, akkor ez a fuggveny hivodik meg
@@ -238,30 +319,20 @@ void onDisplay( ) {
 // Billentyuzet esemenyeket lekezelo fuggveny (lenyomas)
 void onKeyboard(unsigned char key, int x, int y) {
     if (key == 'd') glutPostRedisplay( ); 		// d beture rajzold ujra a kepet
-
 }
-
 // Billentyuzet esemenyeket lekezelo fuggveny (felengedes)
-void onKeyboardUp(unsigned char key, int x, int y) {
-
-}
+void onKeyboardUp(unsigned char key, int x, int y) {}
 
 // Eger esemenyeket lekezelo fuggveny
 void onMouse(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)   // A GLUT_LEFT_BUTTON / GLUT_RIGHT_BUTTON illetve GLUT_DOWN / GLUT_UP
 		glutPostRedisplay( ); 						 // Ilyenkor rajzold ujra a kepet
 }
-
 // Eger mozgast lekezelo fuggveny
-void onMouseMotion(int x, int y)
-{
-
-}
-
+void onMouseMotion(int x, int y){}
 // `Idle' esemenykezelo, jelzi, hogy az ido telik, az Idle esemenyek frekvenciajara csak a 0 a garantalt minimalis ertek
 void onIdle( ) {
      long time = glutGet(GLUT_ELAPSED_TIME);		// program inditasa ota eltelt ido
-
 }
 
 // ...Idaig modosithatod
