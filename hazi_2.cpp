@@ -89,6 +89,11 @@ struct Vector {
    Vector operator%(const Vector& v) { 	// cross product
 	return Vector(y*v.z-z*v.y, z*v.x - x*v.z, x*v.y - y*v.x);
    }
+   
+   bool operator==(const Vector &v) const {
+        return x == v.x && y == v.y && z == v.z;
+    }
+   
    float Length() {
         return sqrt(x * x + y * y + z * z); }
    Vector Normal(){ 
@@ -121,7 +126,8 @@ struct Color {
 //konstansok definialasa
 const float FLT_MAX=1048576.1048576;
 const float G=10;//m/s^2
-
+const double EPS = 1e-3; 
+const double DMAX = 5;
 const int screenWidth = 600;	// alkalmazás ablak 
 const int screenHeight = 600;
 
@@ -133,66 +139,247 @@ class Material{
     Color k;
     bool reflective;
     bool refractive;
-    void setN(Color const &n) {
-        Material::n = n;
-    }
-
-    void setK(Color const &k) {
-        Material::k = k;
-    }
-    
-    void setReflective(bool refl) {
-        Material::reflective = refl;
-    }
 };
 
 class Light{
+ public:
     Vector position;
     Color color;
     float intensity;
+    Light(Color c=Color(0,0,0), Vector p=Vector(0,0,0)) {
+		color=c;
+		position=p;
+	}
+/*
+	Color calculateColor(Intersection inter) {
+		Vector tav=pos-inter.pos;
+		float s=1/pow(tav.Length(),2.0);
+		float intensity =((inter.normal* tav.normalize())>0?(inter.normal* tav.normalize()): 0.0f);
+		Color ret=color*s*intensity;
+		return ret.tonemap();
+	}*/
 };
 
 class Ray{
 public:
-    Vector origin, direction;
-    int i;
-    Ray(Vector o, Vector v): direction(v.Normal()){
-        origin=o;
+   Vector origin, direction;
+    Ray() {
+        origin = Vector(0, 0, 0);
+        direction = Vector(0, 0, 0);
+    }
+    
+    Ray(Vector ori, Vector dir) {
+	this->origin = ori;
+	this->direction = dir.Normal();
+    }
+    Vector getOrig() const {
+	return origin;
+    }
+
+    Vector getDir() const {
+        return direction;
     }
 };
 
-class Hit {
+class Object{
 public:
-  float t;
-  float position; //float3
-  float normal; //float3
   Material* material;
-};
-
-class Intersectable{
-protected:
-  Material* material;
-public:
-  virtual Hit intersect(const Ray& ray)=0;
+  virtual double intersect(Ray& ray) = 0; 
   
 };
 
-class Box: public Intersectable {
+struct Scene {
+    Object* objects[1000];
+    Light light;
+    int numO;
+        
+    Scene(){
+        numO = 0;
+    }
+        
+    void add(Object* object)
+    {
+        objects[numO++] = object;
+    }
     
+    void add(Object* object, Color objColor, Color n, Color k, bool reflective, bool refractive) //objektum hozzáadása a színtérhez
+    {
+        objects[numO] = object;
+        objects[numO]->Material.color = objColor; 
+        objects[numO]->Ka = objColor * 0.2;
+        objects[numO]->material.n = n;
+        objects[numO]->material.k = k; 
+        objects[numO]->material.reflective = reflective; 
+        objects[numO]->material.refractive = refractive;
+        numO++;
+    }
+
 };
 
-class Donut: public Intersectable {
-    
+class Plane: public Object {
+	Vector point;
+	Vector normal;
+public:
+	Plane(Vector p, Vector n) {
+		point = p;
+		normal = n;
+	}
+
+	float intersect(const Ray& ray) {
+		float d = normal * ray.getDir();
+		if (d == 0.0f) {
+			return -1.0f;
+		}
+
+		float t = (normal * (point - ray.getOrig())) / (normal * ray.getDir());
+
+		if (t > 0.01f)
+			return t;
+		if (t > 0.0f)
+			return 0.0f;
+		return -1.0f;
+	}
+
+	float intersect(const Ray& ray, float t1, float t2) {
+		return intersect(ray);
+	}
+
+	Color getColor(const Vector& p) {
+		float a = fabsf(p.z);
+		float b = fabsf(p.x);
+
+		if ((int) roundf(a) % 2 == 0 && (int) roundf(b) % 2 == 0) {
+			return Color(1.0f, 1.0f, 1.0f);
+		} else if ((int) roundf(a) % 2 == 1 && (int) roundf(b) % 2 == 1) {
+			return Color(1.0f, 1.0f, 1.0f);
+		} else {
+			return Color(0.0f, 0.0f, 0.0f);
+		}
+	}
+
+	Vector getNormal(const Vector& v) {
+		return normal;
+	}
 };
-//ezeket még nem tudom hova rakni
-/*
-struct Scene {
-	Object* objects[100];
-	Light lights[10];
-	int objectnum;
-	int lightnum;
+
+class Triangle : public Object{
+public:
+    Vector            a, b, c;        
+    long            ai, bi, ci;        
+ 
+    Vector            normal;    
+    Vector            Na, Nb, Nc;    
+ 
+    Triangle(Vector p0, Vector p1, Vector p2, Vector n0, Vector n1, Vector n2) {
+        a = p0;
+        b = p1;
+        c = p2;
+ 
+        Na = n0.Normal();
+        Nb = n1.Normal();
+        Nc = n2.Normal();
+ 
+        normal = (b - a) % (c - a);
+        normal.Normal();
+    }
+ 
+    double intersect(Ray& ray) {
+        double cost = normal * ray.direction;
+    
+        if (fabs(cost) <= EPS) {
+            return -1;
+        }
+ 
+        double t = ((a - ray.origin) * normal) / cost;
+        if(t < EPS) 
+            return -1;
+ 
+        Vector ip = ray.origin + ray.direction * t;
+ 
+        double c1 = (((b - a) % (ip - a)) * normal);
+        double c2 = (((c - b) % (ip - b)) * normal);
+        double c3 = (((a - c) % (ip - c)) * normal);
+        
+        if (c1 >= 0 && c2 >= 0 && c3 >= 0)
+        {
+            return t;
+        }
+        if (c1 <= 0 && c2 <= 0 && c3 <= 0)
+        {
+            return t;
+        }
+        return -1;
+    }
+ 
+    Vector getNormal(Vector& intersect)    {
+ 
+        float u, v;
+        Vector v0, v1, v2;
+ 
+        v0 = c - a;
+        v1 = b - a;
+        v2 = intersect - a;
+ 
+        u = ((v1 * v1) * (v2 * v0) - (v1 * v0) * (v2 * v1)) / ((v0 * v0) * (v1 * v1) - (v0 * v1) * (v1 * v0));
+        v = ((v0 * v0) * (v2 * v1) - (v0 * v1) * (v2 * v0)) / ((v0 * v0) * (v1 * v1) - (v0 * v1) * (v1 * v0));
+ 
+        return Nc * u + Nb * v + Na * (1 - (u + v));
+    }
+ 
+};
+
+void buildTorus(Vector center,  Scene& scene)
+{
+    float R = 140;
+    float r = 40;    
+ 
+     for(int i = 0; i < 10; i++){
+ 
+        float AngleOuter = (2.0*M_PI/10);
+                
+        for(int j = 0; j < 5; j++){
+ 
+            float AngleInner = (2.0*M_PI/5);
+ 
+            Vector v1, v2, v3, v4;
+ 
+            v1.x = cos (AngleOuter * i) * (R + r * cos(AngleInner * j));
+            v1.y = sin (AngleOuter * i) * (R + r * cos(AngleInner * j));
+            v1.z = r * sin (AngleInner * j);
+ 
+            v2.x = cos (AngleOuter * (i+1)) * (R + r * cos(AngleInner * j));
+            v2.y = sin (AngleOuter * (i+1)) * (R + r * cos(AngleInner * j));
+            v2.z = r * sin (AngleInner * j);
+ 
+            v3.x = cos (AngleOuter * (i)) * (R + r * cos(AngleInner * (j+1)));
+            v3.y = sin (AngleOuter * (i)) * (R + r * cos(AngleInner * (j+1)));
+            v3.z = r * sin (AngleInner * (j+1));
+ 
+            v4.x = cos (AngleOuter * (i+1)) * (R + r * cos(AngleInner * (j+1)));
+            v4.y = sin (AngleOuter * (i+1)) * (R + r * cos(AngleInner * (j+1)));
+            v4.z = r * sin (AngleInner * (j+1));
+ 
+            Vector p1, p2, p3, p4;
+        
+            p1 = center + v1;
+            p2 = center + v2;
+            p3 = center + v3;
+            p4 = center + v4;
+ 
+            scene.add(new Triangle(p1, p2, p3,
+                (v1 - Vector(cos( AngleOuter * i) * R, sin( AngleOuter * i) * R, 0)),
+                (v2 - Vector(cos( AngleOuter * (i+1)) * R, sin( AngleOuter * (i+1)) * R, 0)),
+                (v3 - Vector(cos( AngleOuter * i) * R, sin( AngleOuter * i) * R, 0))), Color(0.1, 0.8, 0.2), Color(0.17, 0.35, 1.5),Color(3.1, 2.7, 1.9),true, false);
+ 
+            scene.add(new Triangle(p4, p3, p2,
+                (v4 - Vector(cos(AngleOuter * (i+1)) * R, sin( AngleOuter * (i+1)) * R, 0)),
+                (v3 - Vector(cos(AngleOuter * i) * R, sin( AngleOuter * i) * R, 0)),
+                (v2 - Vector(cos(AngleOuter * (i+1)) * R, sin( AngleOuter * (i+1)) * R, 0))), Color(0.1, 0.8, 0.2), Color(0.17, 0.35, 1.5), Color(3.1, 2.7, 1.9), true, false);
+        }
+    }
 }
-*/
+
+
 /*
 float3 trace(Ray ray) {
   Hit hit = firstIntersect(ray);
@@ -227,52 +414,32 @@ Render( )
 end
 */
 
-struct Camera {
-	Vector eye;
-	Vector lookat;
-	Vector up;
-	Vector right;
+class Camera {
+ public:
+    Vector eye;
+    Vector lookAt;
+    Vector right;
+    Vector up;
+    float width;
+    float height;
+    Camera(Vector &eye, Vector &lookAt, float width, float height)
+            : eye(eye), lookAt(lookAt), width(width), height(height) {
+        up = Vector(0, 0, 1);
+        if ((lookAt - eye).Normal() == up) {
+            up = Vector(1, 0, 0);
+        } else if ((eye - lookAt).Normal() == up) {
+            up = Vector(0, 1, 0);
+        }
+        right = ((lookAt - eye) % up).Normal();
+        up = (right % (lookAt - eye)).Normal();
+    }
 
-	Camera() {}
-
-	Camera(Vector e, Vector l, Vector u) {
-		eye=e;
-		lookat=(l-eye).Normal();
-		float fov=120;
-		float meret = tan((fov*M_PI/180)/2);
-		right=(lookat%u).Normal()*meret;
-		up=(right%lookat).Normal()*meret;
-	}
-/*
-	void picture() {
-		for(int i=0; i<screenWidth; i++) {
-			for(int j=0; j<screenHeight; j++) {
-				scene.image[i+j*screenHeight]=pixel(i,j);
-			}
-		}
-	}
-
-	Color pixel(int x, int y) {
-		Vector p=lookat + right * ((2.0f * (x + 0.5f)) /screenWidth - 1.0f)
-		         + up * ((2.0f * (y + 0.5f)) /screenHeight - 1.0f);
-		Ray r=Ray(eye,(p-eye).Normal());
-
-		Color retColor=scene.trace(r, 0);
-		return retColor;
-	}
-*/
+    Ray getRay(unsigned int x, unsigned int y) {
+        Vector p = lookAt + right * (2 * (x + 0.5f) / width - 1) + up * (2 * (y + 0.5f) / height - 1);
+        return Ray(eye, p - eye);
+    }
 };
 
-Hit firstIntersect(Ray ray){
-  Hit bestHit;
- bestHit.t = FLT_MAX;/*
-  for(Intersectable* obj : objects)
-  {
-    Hit hit = obj->intersect(ray); //  hit.t < 0 if no intersection
-    if(hit.t > 0 && hit.t < bestHit.t) bestHit = hit;
-  }*/
-  return bestHit;
-}
 
 Color image[screenWidth*screenHeight];	// egy alkalmazás ablaknyi kép
 
@@ -302,14 +469,6 @@ void onDisplay( ) {
 
     // Peldakent atmasoljuk a kepet a rasztertarba
     glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_FLOAT, image);
-    // Majd rajzolunk egy kek haromszoget
-	glColor3f(0, 0, 1);
-	glBegin(GL_TRIANGLES);
-		glVertex2f(-0.2f, -0.2f);
-		glVertex2f( 0.2f, -0.2f);
-		glVertex2f( 0.0f,  0.2f);
-	glEnd( );
-
     // ...
 
     glutSwapBuffers();     				// Buffercsere: rajzolas vege
