@@ -1,7 +1,7 @@
 # Számítógépes grafika
 2014/2015/2 félév
 
-##1. házi feladat
+## 1. házi feladat
 Készítsen elől-felül-oldalnézetes ortografikus 3D Renner spline görbeszerkesztőt, amelyben a pálya menti sebesség közelítőleg 1 m/sec. A 600x600 pixel felbontású alkalmazói ablak négy egyenlő részre van osztva, amelyekben az elől, felül és oldalnézetek látható, egy negyed pedig üres. A világ 3m x 3m x 3m-res kocka, amelynek középpontjában vettük fel az origót. A nézetekben a teljes világ vetületei látszanak, az origó értelemszerűen középen van. A transzformációkat „kézzel” kell számítani, az OpenGL mátrixok most még nem alkalmazhatók.
 
 Amíg még nincs görbénk, az egyik nézetbeli egérkattintások kontrolpontokat vesznek fel, úgy, hogy a nézetre merőleges koordináta zérus. A további nézetekbe kattintva az ott legközelebbinek talált kontrollpont áthelyezhető, a nézetre merőleges koordináta változatlanul hagyásával. A pillanatnyi állapotot minden nézetben jelezni kell, a kontrolpontokat sárga körökkel, a 3D Renner spline-t pedig a fehéren rajzolt 2D merőleges vetületeivel.
